@@ -7,7 +7,12 @@ http:
   method: POST
   url: http://localhost:8080/report
   body:
-    type: multipart-form
+    type: json
+    data: |-
+      {
+        "winner_id": "85916de1-860e-4d46-b2ad-61a7cb79e3f8",
+        "match_id": "c276375e-b6a6-451d-acb8-51af055dfac7"
+      }
   auth: inherit
 
 settings:

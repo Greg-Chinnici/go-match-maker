@@ -1,7 +1,6 @@
 package matchmaking
 
 import (
-	"fmt"
 	"go-match-maker/glicko"
 	"math"
 	"sync"
@@ -47,11 +46,10 @@ func (q *Queue) Snapshot() ([]*glicko.Player, int) {
 	return players, matchCount
 }
 
-func (q *Queue) ProcessMatches(maxDiff float64) (*Match, bool) {
+func (q *Queue) ProcessMatches(maxSkillDiff float64) (*Match, bool, string) {
 	q.Mu.Lock()
 	defer q.Mu.Unlock()
 
-	fmt.Println("Attempting to Match Players")
 	maxPingDelta := 50.
 
 	// Change to Skill and Region Buckets isntead of this nxn matching
@@ -62,7 +60,7 @@ func (q *Queue) ProcessMatches(maxDiff float64) (*Match, bool) {
 			skillDelta := math.Abs(q.Players[i].Rating - q.Players[j].Rating)
 			pingDelta := math.Abs(q.Players[i].AvgPing - q.Players[j].AvgPing)
 
-			if math.Abs(skillDelta) <= maxDiff {
+			if math.Abs(skillDelta) <= maxSkillDiff {
 				if math.Abs(pingDelta) > maxPingDelta {
 					continue
 				}
@@ -80,11 +78,11 @@ func (q *Queue) ProcessMatches(maxDiff float64) (*Match, bool) {
 				q.Players = removeAt(q.Players, j)
 				q.Players = removeAt(q.Players, i)
 
-				return &Match{Player1: p1, Player2: p2}, true
+				return &Match{Player1: p1, Player2: p2}, true, matchID
 			}
 		}
 	}
-	return nil, false
+	return nil, false, ""
 }
 func removeAt(s []*glicko.Player, index int) []*glicko.Player {
 	return append(s[:index], s[index+1:]...)
