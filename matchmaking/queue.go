@@ -52,11 +52,20 @@ func (q *Queue) ProcessMatches(maxDiff float64) (*Match, bool) {
 	defer q.Mu.Unlock()
 
 	fmt.Println("Attempting to Match Players")
+	maxPingDelta := 50.
+
+	// Change to Skill and Region Buckets isntead of this nxn matching
 
 	for i := 0; i < len(q.Players); i++ {
 		for j := i + 1; j < len(q.Players); j++ {
 
-			if math.Abs(q.Players[i].Rating-q.Players[j].Rating) <= maxDiff {
+			skillDelta := math.Abs(q.Players[i].Rating - q.Players[j].Rating)
+			pingDelta := math.Abs(q.Players[i].AvgPing - q.Players[j].AvgPing)
+
+			if math.Abs(skillDelta) <= maxDiff {
+				if math.Abs(pingDelta) > maxPingDelta {
+					continue
+				}
 
 				p1 := q.Players[i]
 				p2 := q.Players[j]
