@@ -13,7 +13,7 @@ func main() {
 	queue := matchmaking.NewQueue()
 
 	server.RegisterHandlers(queue)
-
+	fmt.Println("Starting Loop Routine")
 	go func() {
 		for {
 			time.Sleep(1 * time.Second)

@@ -10,8 +10,8 @@ http:
     type: json
     data: |-
       {
-        "winner_id": "85916de1-860e-4d46-b2ad-61a7cb79e3f8",
-        "match_id": "c276375e-b6a6-451d-acb8-51af055dfac7"
+        "winner_id": "992eaf6f-8beb-4a03-9a21-4a62ff78e5ba",
+        "match_id": "1f292c32-a3a3-4e68-be39-675546761861"
       }
   auth: inherit
 
