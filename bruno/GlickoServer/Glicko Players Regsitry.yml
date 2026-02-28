@@ -1,0 +1,15 @@
+info:
+  name: Glicko Players Regsitry
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: http://localhost:8080/ratings
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

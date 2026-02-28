@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"go-match-maker/glicko"
@@ -28,6 +29,22 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"player_id": p.ID,
 		})
+	})
+
+	http.HandleFunc("/ratings", func(w http.ResponseWriter, r *http.Request) {
+		queue.Mu.Lock()
+		defer queue.Mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(queue.Registry)
+	})
+
+	http.HandleFunc("/matches", func(w http.ResponseWriter, r *http.Request) {
+		queue.Mu.Lock()
+		defer queue.Mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(queue.ActiveMatches)
 	})
 
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
@@ -58,13 +75,15 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		p1 := match.Player1
 		p2 := match.Player2
 
+		fmt.Println(p1.ExpectedScore(p2))
+		fmt.Println(p2.ExpectedScore(p1))
+
 		if req.Winner == p1.ID {
-			p1.Update([]*glicko.Player{p2}, []float64{1})
-			p2.Update([]*glicko.Player{p1}, []float64{0})
+			glicko.UpdateMatch(p1, p2, p1)
 		} else {
-			p1.Update([]*glicko.Player{p2}, []float64{0})
-			p2.Update([]*glicko.Player{p1}, []float64{1})
+			glicko.UpdateMatch(p1, p2, p2)
 		}
+		fmt.Printf("Winner %s\n", req.Winner)
 
 		delete(queue.ActiveMatches, req.MatchID)
 
