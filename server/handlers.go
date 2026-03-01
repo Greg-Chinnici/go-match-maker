@@ -123,10 +123,13 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		//fmt.Println(p1.ExpectedScore(p2))
 		//fmt.Println(p2.ExpectedScore(p1))
 
-		if req.Winner == p1.ID {
+		switch req.Winner {
+		case p1.ID:
 			glicko.UpdateMatch(p1, p2, p1)
-		} else {
+		case p2.ID:
 			glicko.UpdateMatch(p1, p2, p2)
+		default:
+			http.Error(w, "Player ID not matching anyone in that match", http.StatusNotFound)
 		}
 		fmt.Printf("Winner %s\n", req.Winner)
 
