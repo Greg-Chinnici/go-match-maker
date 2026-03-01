@@ -8,7 +8,10 @@ http:
   url: http://localhost:8080/queue
   body:
     type: json
-    data: ""
+    data: |-
+      {
+        "uid":"f07120b6-9750-4910-a948-c6fa5ac1cf62"
+      }
   auth: inherit
 
 settings:

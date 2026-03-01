@@ -2,11 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"go-match-maker/glicko"
 	"go-match-maker/matchmaking"
+
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Status struct {
@@ -34,13 +37,27 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		var p *glicko.Player
 
 		if req.UID != "" {
-			p = db.TryFetchPlayer(req.UID)
-			if p == nil {
+			p, err = TryFetchPlayer(req.UID)
+			if p == nil || err != nil {
 				http.Error(w, "player not found", http.StatusNotFound)
 				return
 			}
+
+			fmt.Println("Player found from DB")
 		} else {
 			p = glicko.NewPlayer()
+		}
+
+		err = SavePlayer(p)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				fmt.Printf("Postgres error code: %s", pgErr.Code)
+				fmt.Printf("Message: %s", pgErr.Message)
+				fmt.Printf("Detail: %s", pgErr.Detail)
+			} else {
+				fmt.Printf("Non-PG error: %+v", err)
+			}
 		}
 
 		queue.AddPlayer(p)
@@ -57,6 +74,14 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(queue.Registry)
+	})
+
+	http.HandleFunc("/active-matches", func(w http.ResponseWriter, r *http.Request) {
+		queue.Mu.Lock()
+		defer queue.Mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(queue.ActiveMatches)
 	})
 
 	http.HandleFunc("/matches", func(w http.ResponseWriter, r *http.Request) {
@@ -95,8 +120,8 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		p1 := match.Player1
 		p2 := match.Player2
 
-		fmt.Println(p1.ExpectedScore(p2))
-		fmt.Println(p2.ExpectedScore(p1))
+		//fmt.Println(p1.ExpectedScore(p2))
+		//fmt.Println(p2.ExpectedScore(p1))
 
 		if req.Winner == p1.ID {
 			glicko.UpdateMatch(p1, p2, p1)
@@ -107,9 +132,20 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 
 		delete(queue.ActiveMatches, req.MatchID)
 
+		if err := SavePlayer(p1); err != nil {
+			http.Error(w, "failed to save player1", http.StatusInternalServerError)
+			return
+		}
+
+		if err := SavePlayer(p2); err != nil {
+			http.Error(w, "failed to save player2", http.StatusInternalServerError)
+			return
+		}
+
 		json.NewEncoder(w).Encode(map[string]any{
 			"p1_rating": p1.Rating,
 			"p2_rating": p2.Rating,
 		})
+
 	})
 }
