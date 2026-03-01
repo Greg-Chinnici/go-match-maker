@@ -17,12 +17,32 @@ type ReportRequest struct {
 	MatchID string `json:"match_id"`
 	Winner  string `json:"winner_id"`
 }
+type QueueRequest struct {
+	UID string `json:"uid"`
+}
 
 func RegisterHandlers(queue *matchmaking.Queue) {
 
 	http.HandleFunc("/queue", func(w http.ResponseWriter, r *http.Request) {
+		var req QueueRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		if err != nil && err.Error() != "EOF" {
+			http.Error(w, "invalid json", http.StatusBadRequest)
+			return
+		}
 
-		p := glicko.NewPlayer()
+		var p *glicko.Player
+
+		if req.UID != "" {
+			p = db.TryFetchPlayer(req.UID)
+			if p == nil {
+				http.Error(w, "player not found", http.StatusNotFound)
+				return
+			}
+		} else {
+			p = glicko.NewPlayer()
+		}
+
 		queue.AddPlayer(p)
 
 		w.WriteHeader(http.StatusOK)
@@ -48,11 +68,11 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 	})
 
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-		players, matches := queue.Snapshot()
+		players, totalMatches := queue.Snapshot()
 
 		resp := Status{
 			QueueSize:     len(players),
-			ActiveMatches: matches,
+			ActiveMatches: totalMatches,
 		}
 
 		json.NewEncoder(w).Encode(resp)
