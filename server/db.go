@@ -16,7 +16,7 @@ type Database struct {
 	connString string
 }
 
-var DB *pgxpool.Pool
+var DB *pgxpool.Pool // using global for now
 
 func InitDB(connStr string) {
 	var err error
