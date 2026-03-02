@@ -9,6 +9,8 @@
 1. Adding better evaluation for matching (avg ping, player role, etc)
 2. client side flow (as of now it wont report a player into a match)
     - Ideally the match is still reported server side anyway
+3. Make the Queue / Waiting list into a B-Tree
+    - sliding window to check to pull X amount of players within rating delta
 
 ## Architecure
 1. HTTP API (net/http)
