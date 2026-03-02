@@ -2,14 +2,11 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"go-match-maker/glicko"
 	"go-match-maker/matchmaking"
-
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type Status struct {
@@ -48,17 +45,19 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 			p = glicko.NewPlayer()
 		}
 
-		err = SavePlayer(p)
-		if err != nil {
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) {
-				fmt.Printf("Postgres error code: %s", pgErr.Code)
-				fmt.Printf("Message: %s", pgErr.Message)
-				fmt.Printf("Detail: %s", pgErr.Detail)
-			} else {
-				fmt.Printf("Non-PG error: %+v", err)
+		/*
+			err = SavePlayer(p)
+			if err != nil {
+				var pgErr *pgconn.PgError
+				if errors.As(err, &pgErr) {
+					fmt.Printf("Postgres error code: %s", pgErr.Code)
+					fmt.Printf("Message: %s", pgErr.Message)
+					fmt.Printf("Detail: %s", pgErr.Detail)
+				} else {
+					fmt.Printf("Non-PG error: %+v", err)
+				}
 			}
-		}
+		*/
 
 		queue.AddPlayer(p)
 
@@ -120,13 +119,15 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		p1 := match.Player1
 		p2 := match.Player2
 
-		//fmt.Println(p1.ExpectedScore(p2))
-		//fmt.Println(p2.ExpectedScore(p1))
+		fmt.Println(p1.ExpectedScore(p2))
+		fmt.Println(p2.ExpectedScore(p1))
 
 		switch req.Winner {
 		case p1.ID:
+			fmt.Printf("%s won against %s \n", p1.ID, p2.ID)
 			glicko.UpdateMatch(p1, p2, p1)
 		case p2.ID:
+			fmt.Printf("%s won against %s \n", p2.ID, p1.ID)
 			glicko.UpdateMatch(p1, p2, p2)
 		default:
 			http.Error(w, "Player ID not matching anyone in that match", http.StatusNotFound)

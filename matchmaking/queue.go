@@ -1,6 +1,7 @@
 package matchmaking
 
 import (
+	"fmt"
 	"go-match-maker/glicko"
 	"math"
 	"sync"
@@ -30,6 +31,11 @@ func NewQueue() *Queue {
 func (q *Queue) AddPlayer(p *glicko.Player) {
 	q.Mu.Lock()
 	defer q.Mu.Unlock()
+
+	if _, ok := q.Registry[p.ID]; ok {
+		fmt.Println("Player already exists in Queue")
+		return
+	}
 
 	q.Players = append(q.Players, p)
 	q.Registry[p.ID] = p
