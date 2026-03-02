@@ -43,3 +43,5 @@ CREATE TABLE public.glickoplayers (
 1. use the `/queue` endpoint, optionaly include existing `uid` in json body
 2. Once players have been matches the server will log the `Match ID` and players involved
 3. use the `/report` endpoint to send in which player Won a certain match
+- If you want to change the Rating delta for a valid match just change the value in `queue.ProcessMatches()` in main.go
+- run `go run . seed` to add 1000 players into the db

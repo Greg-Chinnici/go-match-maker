@@ -13,8 +13,14 @@ import (
 )
 
 func main() {
-	queue := matchmaking.NewQueue()
 	server.InitDB(postgresConnStr())
+	if len(os.Args) == 2 && os.Args[1] == "seed" {
+		server.Seed()
+		fmt.Println("Database seeded with 1000 new players")
+		return
+	}
+
+	queue := matchmaking.NewQueue()
 
 	server.RegisterHandlers(queue)
 	fmt.Println("Starting Loop Routine")
