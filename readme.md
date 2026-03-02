@@ -5,6 +5,11 @@
 - Run the server with:
 `go run main.go`
 
+### Improvements in progress
+1. Adding better evaluation for matching (avg ping, player role, etc)
+2. client side flow (as of now it wont report a player into a match)
+    - Ideally the match is still reported server side anyway
+
 ## Architecure
 1. HTTP API (net/http)
 2. Glicko-2 rating engine (in-memory)
