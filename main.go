@@ -16,7 +16,7 @@ func main() {
 	server.InitDB(postgresConnStr())
 	if len(os.Args) == 2 && os.Args[1] == "seed" {
 		server.Seed()
-		fmt.Println("Database seeded with 1000 new players")
+		fmt.Println("Database seeded with 1000 new players.")
 		return
 	}
 
@@ -28,15 +28,12 @@ func main() {
 		for {
 			time.Sleep(1 * time.Second)
 
-			match, ok, matchId := queue.ProcessMatches(100)
-			if ok {
-				fmt.Printf("Match ID %s\n", matchId)
+			matches := queue.ProcessMatches(100)
 
-				fmt.Printf("\t Matched %s %.2f\n",
-					match.Player1.ID, match.Player1.Rating,
-				)
-				fmt.Printf("\t Matched %s %.2f\n",
-					match.Player2.ID, match.Player2.Rating,
+			for _, match := range matches {
+				fmt.Printf("Matched %s vs %s\n",
+					match.Player1.ID,
+					match.Player2.ID,
 				)
 			}
 		}

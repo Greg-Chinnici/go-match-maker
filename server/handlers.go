@@ -135,6 +135,8 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		fmt.Printf("Winner %s\n", req.Winner)
 
 		delete(queue.ActiveMatches, req.MatchID)
+		delete(queue.Registry, p1.ID)
+		delete(queue.Registry, p2.ID)
 
 		if err := SavePlayer(p1); err != nil {
 			http.Error(w, "failed to save player1", http.StatusInternalServerError)

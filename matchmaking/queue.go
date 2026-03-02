@@ -52,25 +52,23 @@ func (q *Queue) Snapshot() ([]*glicko.Player, int) {
 	return players, matchCount
 }
 
-func (q *Queue) ProcessMatches(maxSkillDiff float64) (*Match, bool, string) {
+func (q *Queue) ProcessMatches(maxSkillDiff float64) []*Match {
 	q.Mu.Lock()
 	defer q.Mu.Unlock()
 
-	maxPingDelta := 50.
+	maxPingDelta := 50.0
+	var matches []*Match
+	// instead of NxN make it use buckets of maxSkillDiff
+	i := 0
+	for i < len(q.Players) {
+		j := i + 1
+		found := false
 
-	// Change to Skill and Region Buckets isntead of this nxn matching
-
-	for i := 0; i < len(q.Players); i++ {
-		for j := i + 1; j < len(q.Players); j++ {
-
+		for j < len(q.Players) {
 			skillDelta := math.Abs(q.Players[i].Rating - q.Players[j].Rating)
 			pingDelta := math.Abs(q.Players[i].AvgPing - q.Players[j].AvgPing)
 
-			if math.Abs(skillDelta) <= maxSkillDiff {
-				if math.Abs(pingDelta) > maxPingDelta {
-					continue
-				}
-
+			if skillDelta <= maxSkillDiff && pingDelta <= maxPingDelta {
 				p1 := q.Players[i]
 				p2 := q.Players[j]
 
@@ -81,15 +79,30 @@ func (q *Queue) ProcessMatches(maxSkillDiff float64) (*Match, bool, string) {
 					Player1: p1,
 					Player2: p2,
 				}
+
+				matches = append(matches, &Match{
+					Player1: p1,
+					Player2: p2,
+				})
+
+				// Remove j first (higher index)
 				q.Players = removeAt(q.Players, j)
 				q.Players = removeAt(q.Players, i)
 
-				return &Match{Player1: p1, Player2: p2}, true, matchID
+				found = true
+				break
 			}
+			j++
+		}
+
+		if !found {
+			i++
 		}
 	}
-	return nil, false, ""
+
+	return matches
 }
+
 func removeAt(s []*glicko.Player, index int) []*glicko.Player {
 	return append(s[:index], s[index+1:]...)
 }

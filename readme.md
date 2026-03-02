@@ -45,3 +45,4 @@ CREATE TABLE public.glickoplayers (
 3. use the `/report` endpoint to send in which player Won a certain match
 - If you want to change the Rating delta for a valid match just change the value in `queue.ProcessMatches()` in main.go
 - run `go run . seed` to add 1000 players into the db
+- test with the `bulkQueue.py` maek sure the to set a csv file with a list of player IDs
