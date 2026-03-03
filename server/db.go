@@ -39,7 +39,6 @@ func InitDB(connStr string) {
 
 func TryFetchPlayer(uuid string) (*glicko.Player, error) {
 	var playerData glicko.Player
-
 	query := "SELECT rating , rd , volatility, id FROM glickoplayers WHERE id = $1"
 	err := DB.QueryRow(context.Background(), query, uuid).
 		Scan(
@@ -51,7 +50,7 @@ func TryFetchPlayer(uuid string) (*glicko.Player, error) {
 	playerData.AvgPing = 50
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("player not found")
+		return nil, nil
 	}
 	if err != nil {
 		return nil, err

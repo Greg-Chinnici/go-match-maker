@@ -13,6 +13,11 @@ import (
 )
 
 func main() {
+	teamSize := 2
+	matchesWaitingSize := 1000
+	activeMatchesAtOnce := 20
+	ratingDiff := 100.
+
 	server.InitDB(postgresConnStr())
 	if len(os.Args) == 2 && os.Args[1] == "seed" {
 		server.Seed()
@@ -23,18 +28,24 @@ func main() {
 	queue := matchmaking.NewQueue()
 
 	server.RegisterHandlers(queue)
+
+	jobs := make(chan *matchmaking.ActiveMatch, matchesWaitingSize)
+	server.StartWorkerPool(activeMatchesAtOnce, jobs) // workers will wait if more than X matches are running
+
 	fmt.Println("Starting Loop Routine")
 	go func() {
 		for {
 			time.Sleep(1 * time.Second)
 
-			matches := queue.ProcessMatches(200, 3)
+			matches := queue.ProcessMatches(ratingDiff, teamSize)
 
 			for _, match := range matches {
 				fmt.Printf("Matched %s vs %s\n",
 					match.Team1.TeamUIDSlice(),
 					match.Team2.TeamUIDSlice(),
 				)
+
+				jobs <- match
 			}
 		}
 	}()

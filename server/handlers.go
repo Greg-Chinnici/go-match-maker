@@ -35,14 +35,26 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 
 		if req.UID != "" {
 			p, err = TryFetchPlayer(req.UID)
-			if p == nil || err != nil {
-				http.Error(w, "player not found", http.StatusNotFound)
+			if err != nil {
+				http.Error(w, "db error", http.StatusInternalServerError)
 				return
 			}
 
-			fmt.Println("Player found from DB")
+			// If not found → create new
+			if p == nil {
+				p = glicko.NewPlayer(req.UID)
+
+				if err := SavePlayer(p); err != nil {
+					http.Error(w, "failed to create player", http.StatusInternalServerError)
+					return
+				}
+			}
 		} else {
-			p = glicko.NewPlayer()
+			p = glicko.NewPlayer("")
+			if err := SavePlayer(p); err != nil {
+				http.Error(w, "failed to create player", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		/*

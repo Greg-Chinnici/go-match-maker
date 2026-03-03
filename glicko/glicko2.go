@@ -11,9 +11,13 @@ type Player struct {
 	AvgPing float64 //ms
 }
 
-func NewPlayer() *Player {
+func NewPlayer(uid string) *Player {
+	if uid == "" {
+		uid = uuid.New().String()
+	}
+
 	return &Player{
-		ID:         uuid.New().String(),
+		ID:         uid,
 		Rating:     DefaultRating,
 		RD:         DefaultRD,
 		Volatility: DefaultVolatility,
