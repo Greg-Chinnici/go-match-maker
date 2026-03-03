@@ -15,6 +15,9 @@ import (
 type Database struct {
 	connString string
 }
+type DBTX interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
 
 var DB *pgxpool.Pool // using global for now
 
@@ -56,8 +59,27 @@ func TryFetchPlayer(uuid string) (*glicko.Player, error) {
 
 	return &playerData, err
 }
-
 func SavePlayer(player *glicko.Player) error {
+	return savePlayer(context.Background(), DB, player)
+}
+func SavePlayersInTx(players []*glicko.Player) error {
+	ctx := context.Background()
+
+	tx, err := DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) // safe even if committed
+
+	for _, p := range players {
+		if err := savePlayer(ctx, tx, p); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+func savePlayer(ctx context.Context, db DBTX, player *glicko.Player) error {
 	fmt.Println("Trying to save a player")
 	fmt.Println(player)
 
@@ -70,7 +92,7 @@ func SavePlayer(player *glicko.Player) error {
 			rd = EXCLUDED.rd,
 			volatility = EXCLUDED.volatility
 	`
-	_, err := DB.Exec(context.Background(), insert,
+	_, err := db.Exec(ctx, insert,
 		player.ID, player.Rating, player.RD, player.Volatility,
 	)
 

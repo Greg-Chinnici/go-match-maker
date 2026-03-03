@@ -61,7 +61,7 @@ def csvSource():
 def autoSource(cnt= 200):
     global players_sent
     
-    for i in range(cnt):
+    for _ in range(cnt):
         try:
             post_player(None)
             players_sent += 1

@@ -136,30 +136,14 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 
 		delete(queue.Registry, t1.ID)
 
+		SavePlayersInTx(t1.Players)
+		SavePlayersInTx(t2.Players)
+
 		for _, p := range t1.Players {
-			if err := SavePlayer(p); err != nil {
-				http.Error(
-					w,
-					fmt.Sprintf("failed to save player %s: %v", p.ID, err),
-					http.StatusInternalServerError,
-				)
-				return
-			}
 			delete(queue.Registry, p.ID)
-
 		}
-
 		for _, p := range t2.Players {
-			if err := SavePlayer(p); err != nil {
-				http.Error(
-					w,
-					fmt.Sprintf("failed to save player %s: %v", p.ID, err),
-					http.StatusInternalServerError,
-				)
-				return
-			}
 			delete(queue.Registry, p.ID)
-
 		}
 
 		delete(queue.ActiveMatches, req.MatchID)
