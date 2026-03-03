@@ -95,7 +95,7 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 		players, totalMatches := queue.Snapshot()
 
 		resp := Status{
-			QueueSize:     len(players),
+			QueueSize:     players,
 			ActiveMatches: totalMatches,
 		}
 
@@ -116,41 +116,57 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 			return
 		}
 
-		p1 := match.Player1
-		p2 := match.Player2
+		t1 := match.Team1
+		t2 := match.Team2
 
-		fmt.Println(p1.ExpectedScore(p2))
-		fmt.Println(p2.ExpectedScore(p1))
+		//fmt.Println(p1.ExpectedScore(p2))
+		//fmt.Println(p2.ExpectedScore(p1))
 
 		switch req.Winner {
-		case p1.ID:
-			fmt.Printf("%s won against %s \n", p1.ID, p2.ID)
-			glicko.UpdateMatch(p1, p2, p1)
-		case p2.ID:
-			fmt.Printf("%s won against %s \n", p2.ID, p1.ID)
-			glicko.UpdateMatch(p1, p2, p2)
+		case t1.ID:
+			fmt.Printf("%s won against %s \n", t1.ID, t2.ID)
+			glicko.UpdateTeamMatch(t1.Players, t2.Players, 1)
+		case t2.ID:
+			fmt.Printf("%s won against %s \n", t2.ID, t1.ID)
+			glicko.UpdateTeamMatch(t1.Players, t2.Players, -1)
 		default:
 			http.Error(w, "Player ID not matching anyone in that match", http.StatusNotFound)
 		}
 		fmt.Printf("Winner %s\n", req.Winner)
 
+		delete(queue.Registry, t1.ID)
+
+		for _, p := range t1.Players {
+			if err := SavePlayer(p); err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("failed to save player %s: %v", p.ID, err),
+					http.StatusInternalServerError,
+				)
+				return
+			}
+			delete(queue.Registry, p.ID)
+
+		}
+
+		for _, p := range t2.Players {
+			if err := SavePlayer(p); err != nil {
+				http.Error(
+					w,
+					fmt.Sprintf("failed to save player %s: %v", p.ID, err),
+					http.StatusInternalServerError,
+				)
+				return
+			}
+			delete(queue.Registry, p.ID)
+
+		}
+
 		delete(queue.ActiveMatches, req.MatchID)
-		delete(queue.Registry, p1.ID)
-		delete(queue.Registry, p2.ID)
-
-		if err := SavePlayer(p1); err != nil {
-			http.Error(w, "failed to save player1", http.StatusInternalServerError)
-			return
-		}
-
-		if err := SavePlayer(p2); err != nil {
-			http.Error(w, "failed to save player2", http.StatusInternalServerError)
-			return
-		}
 
 		json.NewEncoder(w).Encode(map[string]any{
-			"p1_rating": p1.Rating,
-			"p2_rating": p2.Rating,
+			"team_1_rating": t1.AverageRating(),
+			"team_2_rating": t2.AverageRating(),
 		})
 
 	})

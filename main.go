@@ -28,12 +28,12 @@ func main() {
 		for {
 			time.Sleep(1 * time.Second)
 
-			matches := queue.ProcessMatches(100)
+			matches := queue.ProcessMatches(200, 3)
 
 			for _, match := range matches {
 				fmt.Printf("Matched %s vs %s\n",
-					match.Player1.ID,
-					match.Player2.ID,
+					match.Team1.TeamUIDSlice(),
+					match.Team2.TeamUIDSlice(),
 				)
 			}
 		}

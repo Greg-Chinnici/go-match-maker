@@ -37,6 +37,7 @@ def submit_result(winner , match_id):
     )
     with urllib.request.urlopen(req) as response:
         return json.loads(response.read())
+
 def csvSource():
     with open(CSV_FILE, newline="") as file:
         reader = csv.reader(file)
@@ -55,7 +56,7 @@ def csvSource():
                 players_sent += 1
             except Exception as e:
                 print(f"Error inserting {player_id}: {e}")
-            time.sleep(0.05)
+            time.sleep(0.0001)
 
 def autoSource(cnt= 200):
     global players_sent
@@ -66,7 +67,7 @@ def autoSource(cnt= 200):
             players_sent += 1
         except Exception as e:
             print(f"Exception occurred: {e}")
-        time.sleep(0.05)
+        time.sleep(0.0001)
     
 
 def main():
@@ -84,8 +85,8 @@ def main():
         print(f"api found {len(active_matches)} matches")
         for match_id, match in active_matches.items():
             
-            player1 = match["Player1"]["ID"]
-            player2 = match["Player2"]["ID"]
+            player1 = match["Team1"]["ID"]
+            player2 = match["Team2"]["ID"]
 
             winner = random.choice([player1, player2])
             r = submit_result(winner , match_id)

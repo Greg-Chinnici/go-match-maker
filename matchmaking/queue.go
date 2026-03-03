@@ -3,29 +3,44 @@ package matchmaking
 import (
 	"fmt"
 	"go-match-maker/glicko"
-	"math"
 	"sync"
 
+	"github.com/google/btree"
 	"github.com/google/uuid"
 )
 
 type Queue struct {
 	Mu            sync.Mutex
-	Players       []*glicko.Player
 	Registry      map[string]*glicko.Player
 	ActiveMatches map[string]*ActiveMatch
+
+	PlayersQueued *btree.BTree
 }
 type ActiveMatch struct {
-	ID      string
-	Player1 *glicko.Player
-	Player2 *glicko.Player
+	ID    string
+	Team1 Team
+	Team2 Team
+}
+
+type PlayerItem struct {
+	Player *glicko.Player
+}
+
+func (p PlayerItem) Less(than btree.Item) bool {
+	other := than.(PlayerItem).Player
+
+	if p.Player.Rating == other.Rating {
+		return p.Player.ID < other.ID
+	}
+	return p.Player.Rating < other.Rating
 }
 
 func NewQueue() *Queue {
 	return &Queue{
-		Players:       make([]*glicko.Player, 0),
 		Registry:      make(map[string]*glicko.Player),
 		ActiveMatches: make(map[string]*ActiveMatch),
+
+		PlayersQueued: btree.New(3),
 	}
 }
 func (q *Queue) AddPlayer(p *glicko.Player) {
@@ -37,70 +52,67 @@ func (q *Queue) AddPlayer(p *glicko.Player) {
 		return
 	}
 
-	q.Players = append(q.Players, p)
+	q.PlayersQueued.ReplaceOrInsert(PlayerItem{Player: p})
 	q.Registry[p.ID] = p
 }
 
-func (q *Queue) Snapshot() ([]*glicko.Player, int) {
+func (q *Queue) Snapshot() (int, int) {
 	q.Mu.Lock()
 	defer q.Mu.Unlock()
 
-	players := make([]*glicko.Player, len(q.Players))
-	copy(players, q.Players)
-
+	players := q.PlayersQueued.Len()
 	matchCount := len(q.ActiveMatches)
 	return players, matchCount
 }
 
-func (q *Queue) ProcessMatches(maxSkillDiff float64) []*Match {
+func (q *Queue) ProcessMatches(maxSkillDiff float64, teamSize int) []*ActiveMatch {
 	q.Mu.Lock()
 	defer q.Mu.Unlock()
 
-	maxPingDelta := 50.0
-	var matches []*Match
-	// instead of NxN make it use buckets of maxSkillDiff
-	i := 0
-	for i < len(q.Players) {
-		j := i + 1
-		found := false
+	window := []*glicko.Player{}
+	var toRemove []PlayerItem
+	var newMatches []*ActiveMatch
 
-		for j < len(q.Players) {
-			skillDelta := math.Abs(q.Players[i].Rating - q.Players[j].Rating)
-			pingDelta := math.Abs(q.Players[i].AvgPing - q.Players[j].AvgPing)
+	q.PlayersQueued.Ascend(func(item btree.Item) bool {
+		p := item.(PlayerItem).Player
 
-			if skillDelta <= maxSkillDiff && pingDelta <= maxPingDelta {
-				p1 := q.Players[i]
-				p2 := q.Players[j]
+		window = append(window, p)
 
-				matchID := uuid.New().String()
+		if len(window) == 2*teamSize {
 
-				q.ActiveMatches[matchID] = &ActiveMatch{
-					ID:      matchID,
-					Player1: p1,
-					Player2: p2,
+			if isValidMatch(window, maxSkillDiff) {
+				m := createMatch(window)
+				newMatches = append(newMatches, m)
+
+				for _, p := range window {
+					toRemove = append(toRemove, PlayerItem{Player: p})
 				}
 
-				matches = append(matches, &Match{
-					Player1: p1,
-					Player2: p2,
-				})
-
-				// Remove j first (higher index)
-				q.Players = removeAt(q.Players, j)
-				q.Players = removeAt(q.Players, i)
-
-				found = true
-				break
+				window = window[:0]
+			} else {
+				// slide window by 1
+				window = window[1:]
 			}
-			j++
 		}
 
-		if !found {
-			i++
-		}
+		return true
+	})
+
+	for _, p := range toRemove {
+		q.PlayersQueued.Delete(p)
 	}
+	for _, m := range newMatches {
+		q.ActiveMatches[m.ID] = m
+	}
+	return newMatches
+}
 
-	return matches
+func isValidMatch(lobby []*glicko.Player, maxRatingDiff float64) bool {
+	return lobby[len(lobby)-1].Rating-lobby[0].Rating < maxRatingDiff
+}
+func createMatch(lobby []*glicko.Player) *ActiveMatch {
+	team1, team2 := BalanceTeamsGreedy(lobby)
+	return &ActiveMatch{Team1: team1, Team2: team2, ID: uuid.NewString()}
 }
 
 func removeAt(s []*glicko.Player, index int) []*glicko.Player {

@@ -162,3 +162,50 @@ func UpdateMatchWithTau(p1, p2 *Player, winner *Player, tau float64) {
 func (p *Player) ExpectedScore(opponent *Player) float64 {
 	return p.e(opponent)
 }
+
+func UpdateTeamMatch(teamA, teamB []*Player, winner int) {
+	// winner:
+	//  1 = teamA wins
+	// -1 = teamB wins
+	//  0 = draw
+
+	for _, pA := range teamA {
+		opps := make([]*Player, len(teamB))
+		scores := make([]float64, len(teamB))
+
+		for i, pB := range teamB {
+			opps[i] = pB
+
+			switch winner {
+			case 1:
+				scores[i] = 1.0
+			case -1:
+				scores[i] = 0.0
+			default:
+				scores[i] = 0.5
+			}
+		}
+
+		pA.Update(opps, scores)
+	}
+
+	for _, pB := range teamB {
+		opps := make([]*Player, len(teamA))
+		scores := make([]float64, len(teamA))
+
+		for i, pA := range teamA {
+			opps[i] = pA
+
+			switch winner {
+			case -1:
+				scores[i] = 1.0
+			case 1:
+				scores[i] = 0.0
+			default:
+				scores[i] = 0.5
+			}
+		}
+
+		pB.Update(opps, scores)
+	}
+}
