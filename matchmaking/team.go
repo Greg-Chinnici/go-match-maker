@@ -1,8 +1,9 @@
 package matchmaking
 
 import (
+	"fmt"
 	"go-match-maker/glicko"
-	"sort"
+	"math/rand"
 
 	"github.com/google/uuid"
 )
@@ -30,23 +31,90 @@ func (t Team) TeamUIDSlice() []string {
 	return uids
 }
 
-func BalanceTeamsGreedy(players []*glicko.Player) (Team, Team) {
-	sort.Slice(players, func(i, j int) bool {
-		return players[i].Rating > players[j].Rating // sort descending
-	})
+type ITeamBalance interface {
+	TeamBalance(players []*glicko.Player, teamCount int) ([]Team, error)
+}
 
-	teamA := Team{ID: uuid.NewString()}
-	teamB := Team{ID: uuid.NewString()}
+type SnakeDraftTeam struct{}
 
-	for _, p := range players {
-		if teamA.AverageRating() <= teamB.AverageRating() && len(teamA.Players) < len(players)/2 {
-			teamA.Players = append(teamA.Players, p)
-		} else if len(teamB.Players) < len(players)/2 {
-			teamB.Players = append(teamB.Players, p)
-		} else {
-			// fill the rest of the spots if one team is already full
-			teamA.Players = append(teamA.Players, p)
+func (s SnakeDraftTeam) TeamBalance(players []*glicko.Player, teamCount int) ([]Team, error) {
+	if teamCount <= 0 {
+		return nil, fmt.Errorf("invalid team count")
+	}
+	if len(players) < teamCount {
+		return nil, fmt.Errorf("not enough players")
+	}
+
+	teams := make([]Team, teamCount)
+	for i := range teams {
+		teams[i] = Team{ID: uuid.NewString()}
+	}
+
+	index := teamCount - 1
+	direction := -1
+
+	for i := len(players) - 1; i >= 0; i-- {
+		teams[index].Players = append(teams[index].Players, players[i])
+
+		index += direction
+
+		if index < 0 {
+			index = 1
+			direction = 1
+		}
+		if index >= teamCount {
+			index = teamCount - 2
+			direction = -1
 		}
 	}
-	return teamA, teamB
+
+	return teams, nil
 }
+
+type RandomTeam struct{}
+
+func (r RandomTeam) TeamBalance(players []*glicko.Player, teamCount int) ([]Team, error) {
+	if teamCount <= 0 {
+		return nil, fmt.Errorf("invalid team count")
+	}
+	if len(players) < teamCount {
+		return nil, fmt.Errorf("not enough players")
+	}
+
+	rand.Shuffle(len(players), func(i, j int) {
+		players[i], players[j] = players[j], players[i]
+	})
+
+	teams := make([]Team, teamCount)
+	for i := range teams {
+		teams[i] = Team{ID: uuid.NewString()}
+	}
+
+	for i, p := range players {
+		teamIndex := i % teamCount
+		teams[teamIndex].Players = append(teams[teamIndex].Players, p)
+	}
+
+	return teams, nil
+}
+
+type FFATeam struct{}
+
+func (f FFATeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error) {
+	if len(players) == 0 {
+		return nil, fmt.Errorf("no players")
+	}
+
+	teams := make([]Team, len(players))
+
+	for i, p := range players {
+		teams[i] = Team{
+			ID:      uuid.NewString(),
+			Players: []*glicko.Player{p},
+		}
+	}
+
+	return teams, nil
+}
+
+type OptimalTeam struct{}

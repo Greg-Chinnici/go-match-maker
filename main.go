@@ -13,7 +13,6 @@ import (
 )
 
 func main() {
-	teamSize := 2
 	matchesWaitingSize := 1000
 	activeMatchesAtOnce := 20
 	ratingDiff := 100.
@@ -37,13 +36,17 @@ func main() {
 		for {
 			time.Sleep(1 * time.Second)
 
-			matches := queue.ProcessMatches(ratingDiff, teamSize)
+			matches, err := queue.ProcessMatches(ratingDiff, matchmaking.MatchConfig{LobbySize: 2, TeamCount: 2, Strategy: matchmaking.FFATeam{}})
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
 
 			for _, match := range matches {
-				fmt.Printf("Matched %s vs %s\n",
-					match.Team1.TeamUIDSlice(),
-					match.Team2.TeamUIDSlice(),
-				)
+				fmt.Printf("Teams in Match %s\n", match.ID)
+				for _, team := range match.Teams {
+					fmt.Printf("\t %s\n", team.ID)
+				}
 
 				jobs <- match
 			}

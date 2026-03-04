@@ -36,13 +36,7 @@ func StartWorkerPool(workerCount int, jobs <-chan *matchmaking.ActiveMatch) {
 func HandleMatch(match *matchmaking.ActiveMatch) {
 	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 
-	var winner string
-	if rand.Intn(2) == 0 {
-		winner = match.Team1.ID
-	} else {
-		winner = match.Team2.ID
-	}
-
+	winner := match.Teams[rand.Intn(len(match.Teams))].ID
 	payload := ReportRequest{
 		Winner:  winner,
 		MatchID: match.ID,

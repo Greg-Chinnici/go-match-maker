@@ -128,41 +128,46 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 			return
 		}
 
-		t1 := match.Team1
-		t2 := match.Team2
+		var winnerTeam *matchmaking.Team
+		var loserTeams []matchmaking.Team
 
-		//fmt.Println(p1.ExpectedScore(p2))
-		//fmt.Println(p2.ExpectedScore(p1))
+		for i := range match.Teams {
+			if match.Teams[i].ID == req.Winner {
+				winnerTeam = &match.Teams[i]
+			} else {
+				loserTeams = append(loserTeams, match.Teams[i])
+			}
+		}
 
-		switch req.Winner {
-		case t1.ID:
-			fmt.Printf("%s won against %s \n", t1.ID, t2.ID)
-			glicko.UpdateTeamMatch(t1.Players, t2.Players, 1)
-		case t2.ID:
-			fmt.Printf("%s won against %s \n", t2.ID, t1.ID)
-			glicko.UpdateTeamMatch(t1.Players, t2.Players, -1)
-		default:
-			http.Error(w, "Player ID not matching anyone in that match", http.StatusNotFound)
+		if winnerTeam == nil {
+			http.Error(w, "winner not found in match", http.StatusBadRequest)
+			return
 		}
 		fmt.Printf("Winner %s\n", req.Winner)
 
-		delete(queue.Registry, t1.ID)
-
-		SavePlayersInTx(t1.Players)
-		SavePlayersInTx(t2.Players)
-
-		for _, p := range t1.Players {
-			delete(queue.Registry, p.ID)
+		for _, loser := range loserTeams {
+			glicko.UpdateTeamMatch(winnerTeam.Players, loser.Players, 1)
 		}
-		for _, p := range t2.Players {
-			delete(queue.Registry, p.ID)
+		for _, team := range match.Teams {
+			SavePlayersInTx(team.Players)
 		}
 
-		delete(queue.ActiveMatches, req.MatchID)
+		for _, team := range match.Teams {
+			for _, p := range team.Players {
+				defer delete(queue.Registry, p.ID)
+			}
+		}
+
+		defer delete(queue.ActiveMatches, req.MatchID)
+
+		ratings := make(map[string]float64)
+
+		for _, team := range match.Teams {
+			ratings[team.ID] = team.AverageRating()
+		}
 
 		json.NewEncoder(w).Encode(map[string]any{
-			"team_1_rating": t1.AverageRating(),
-			"team_2_rating": t2.AverageRating(),
+			"team_ratings": ratings,
 		})
 
 	})

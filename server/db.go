@@ -80,6 +80,7 @@ func SavePlayersInTx(players []*glicko.Player) error {
 }
 func savePlayer(ctx context.Context, db DBTX, player *glicko.Player) error {
 	fmt.Println("Trying to save a player")
+	fmt.Print("SAVE: ")
 	fmt.Println(player)
 
 	insert := `

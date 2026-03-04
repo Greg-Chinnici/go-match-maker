@@ -18,8 +18,7 @@ type Queue struct {
 }
 type ActiveMatch struct {
 	ID    string
-	Team1 Team
-	Team2 Team
+	Teams []Team
 }
 
 type PlayerItem struct {
@@ -65,7 +64,7 @@ func (q *Queue) Snapshot() (int, int) {
 	return players, matchCount
 }
 
-func (q *Queue) ProcessMatches(maxSkillDiff float64, teamSize int) []*ActiveMatch {
+func (q *Queue) ProcessMatches(maxSkillDiff float64, config MatchConfig) ([]*ActiveMatch, error) {
 	q.Mu.Lock()
 	defer q.Mu.Unlock()
 
@@ -73,15 +72,22 @@ func (q *Queue) ProcessMatches(maxSkillDiff float64, teamSize int) []*ActiveMatc
 	var toRemove []PlayerItem
 	var newMatches []*ActiveMatch
 
+	var processErr error
+
 	q.PlayersQueued.Ascend(func(item btree.Item) bool {
 		p := item.(PlayerItem).Player
 
 		window = append(window, p)
 
-		if len(window) == 2*teamSize {
+		if len(window) == config.LobbySize {
 
 			if isValidMatch(window, maxSkillDiff) {
-				m := createMatch(window)
+				m, err := createMatch(window, config.Strategy, config.TeamCount)
+				if err != nil {
+					processErr = err
+					return false
+				}
+
 				newMatches = append(newMatches, m)
 
 				for _, p := range window {
@@ -98,23 +104,43 @@ func (q *Queue) ProcessMatches(maxSkillDiff float64, teamSize int) []*ActiveMatc
 		return true
 	})
 
+	if processErr != nil {
+		return nil, processErr
+	}
+
 	for _, p := range toRemove {
 		q.PlayersQueued.Delete(p)
 	}
 	for _, m := range newMatches {
 		q.ActiveMatches[m.ID] = m
 	}
-	return newMatches
+	return newMatches, nil
 }
 
 func isValidMatch(lobby []*glicko.Player, maxRatingDiff float64) bool {
 	return lobby[len(lobby)-1].Rating-lobby[0].Rating < maxRatingDiff
 }
-func createMatch(lobby []*glicko.Player) *ActiveMatch {
-	team1, team2 := BalanceTeamsGreedy(lobby)
-	return &ActiveMatch{Team1: team1, Team2: team2, ID: uuid.NewString()}
+
+type MatchStrategy interface {
+	BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error)
+}
+
+// make this create match more generic
+func createMatch(lobby []*glicko.Player, strategy MatchStrategy, teamCount int) (*ActiveMatch, error) {
+	teams, err := strategy.BuildMatch(lobby, teamCount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ActiveMatch{Teams: teams, ID: uuid.NewString()}, nil
 }
 
 func removeAt(s []*glicko.Player, index int) []*glicko.Player {
 	return append(s[:index], s[index+1:]...)
+}
+
+type MatchConfig struct {
+	LobbySize int
+	TeamCount int
+	Strategy  MatchStrategy
 }
