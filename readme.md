@@ -7,12 +7,9 @@
 
 ### Improvements in progress
 1. Adding better evaluation for matching (avg ping, player role, etc)
-2. client side flow (as of now it wont report a player into a match)
-    - Ideally the match is still reported server side anyway
-3. Make the Queue / Waiting list into a B-Tree
-    - sliding window to check to pull X amount of players within rating delta
-4. Once players are in a lobby, use a few differnt team balance strategies
-    - Higher rated lobbies will balance differently
+2. Once players are in a lobby, use a few differnt team balance strategies
+    [x] Random Team
+    [x] Snake Draft
 
 ## Architecure
 1. HTTP API (net/http)

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"net/http"
 	"time"
@@ -55,10 +56,25 @@ func HandleMatch(match *matchmaking.ActiveMatch) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("post error: ", err)
+		fmt.Println("post error:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	bodyResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("read error:", err)
 		return
 	}
 
-	defer resp.Body.Close()
-	fmt.Println(resp.Body)
+	fmt.Println("Status:", resp.Status)
+	fmt.Println("Response JSON:")
+	var pretty bytes.Buffer
+	err = json.Indent(&pretty, bodyResp, "", "  ")
+	if err != nil {
+		fmt.Println("invalid json:", err)
+		return
+	}
+
+	fmt.Println(pretty.String())
 }
