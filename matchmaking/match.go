@@ -14,15 +14,15 @@ type MatchStrategy interface {
 }
 
 func ConfigFactory(gameType string, lobbySize, teamCount int) MatchConfig {
-	var strategy MatchStrategy
 	switch gameType {
 	case "FFA":
-		strategy = FFATeam{}
+		return NewFFAConfig(lobbySize)
 	case "TDM":
-		strategy = RandomTeam{}
+		return NewCasualTeamDeathmatch(lobbySize)
+	case "BR":
+		return NewBattleRoyale(lobbySize, teamCount)
 	default:
-		panic("Invalid Match Config choice")
+		panic("Invalid Match Config choice. (FFA , TDM , BR)")
 	}
 
-	return MatchConfig{lobbySize, teamCount, strategy}
 }

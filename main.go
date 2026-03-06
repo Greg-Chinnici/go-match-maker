@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -15,14 +16,29 @@ import (
 func main() {
 	matchesWaitingSize := 1000
 	activeMatchesAtOnce := 20
-	ratingDiff := 100.
+
+	var teamCount int
+	var lobbySize int
+	var gameType string
+	var ratingDiff float64
+	flag.IntVar(&teamCount, "teamCount", 0, "Total Teams per Match")
+	flag.IntVar(&lobbySize, "lobby", 0, "Total Players in each Match")
+	flag.StringVar(&gameType, "gamemode", "", "FFA , BR , TDM")
+	flag.Float64Var(&ratingDiff, "ratingDiff", 100., "Each Lobby's max rating delta")
+
+	flag.Parse()
+
+	args := flag.Args()
 
 	server.InitDB(postgresConnStr())
-	if len(os.Args) == 2 && os.Args[1] == "seed" {
+
+	if len(args) > 0 && args[0] == "seed" {
 		server.Seed()
 		fmt.Println("Database seeded with 1000 new players.")
 		return
 	}
+
+	config := matchmaking.ConfigFactory(gameType, lobbySize, teamCount)
 
 	queue := matchmaking.NewQueue()
 
@@ -36,7 +52,7 @@ func main() {
 		for {
 			time.Sleep(1 * time.Second)
 
-			matches, err := queue.ProcessMatches(ratingDiff, matchmaking.MatchConfig{LobbySize: 2, TeamCount: 2, Strategy: matchmaking.FFATeam{}})
+			matches, err := queue.ProcessMatches(ratingDiff, config)
 			if err != nil {
 				fmt.Println(err)
 				continue

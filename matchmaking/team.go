@@ -115,7 +115,7 @@ func (f FFATeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team, er
 
 type OptimalTeam struct{}
 
-func (o OptimalTeam) BuildMatch(players []*glick0.Player, teamCount int) ([]Team, error) {
+func (o OptimalTeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error) {
 	if teamCount < 0 {
 		return nil, fmt.Errorf("invalid team count")
 	}
@@ -132,7 +132,7 @@ func (o OptimalTeam) BuildMatch(players []*glick0.Player, teamCount int) ([]Team
 		}
 	}
 
-	for pid := len(players)-1; pid >= 0 ; pid--{
+	for pid := len(players) - 1; pid >= 0; pid-- {
 		p := players[pid]
 		minIdx := 0
 		for i := 1; i < teamCount; i++ {
@@ -147,4 +147,3 @@ func (o OptimalTeam) BuildMatch(players []*glick0.Player, teamCount int) ([]Team
 
 	return teams, nil
 }
-

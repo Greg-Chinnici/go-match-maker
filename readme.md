@@ -3,7 +3,7 @@
 - My attempt at implementing Glicko-2 matchmaking (better alternative to ELO)
 
 - Run the server with:
-`go run main.go`
+`go run main.go -gamemode BR -lobby 24 -teamCount 6`
 
 ### Improvements in progress
 1. Adding better evaluation for matching (avg ping, player role, etc)
@@ -49,5 +49,5 @@ CREATE TABLE public.glickoplayers (
   - for now games are automaticallty ended in `mockGameResolver` via a timeout
 ----
 - If you want to change the Rating delta for a valid match just change the value in `queue.ProcessMatches()` in main.go
-- run `go run . seed` to add 1000 players into the db
+- run `go run . seed` to add 1000 players into the db (not needed but set a normally distributed group of players)
 - test with the `BulkTests/main.go` 
