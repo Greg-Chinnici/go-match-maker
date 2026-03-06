@@ -21,9 +21,9 @@ func main() {
 	var lobbySize int
 	var gameType string
 	var ratingDiff float64
-	flag.IntVar(&teamCount, "teamCount", 0, "Total Teams per Match")
-	flag.IntVar(&lobbySize, "lobby", 0, "Total Players in each Match")
-	flag.StringVar(&gameType, "gamemode", "", "FFA , BR , TDM")
+	flag.IntVar(&teamCount, "teamCount", 2, "Total Teams per Match")
+	flag.IntVar(&lobbySize, "lobby", 2, "Total Players in each Match")
+	flag.StringVar(&gameType, "gamemode", "FFA", "FFA , BR , TDM")
 	flag.Float64Var(&ratingDiff, "ratingDiff", 100., "Each Lobby's max rating delta")
 
 	flag.Parse()
