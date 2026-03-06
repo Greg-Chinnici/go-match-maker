@@ -42,5 +42,3 @@ func EstablishedPlayer(rating, deviation, volatility float64, id string) *Player
 		AvgPing: 50,
 	}
 }
-
-// Make a contructor to pull from a DB given a UUID

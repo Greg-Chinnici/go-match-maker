@@ -30,8 +30,8 @@ type Result struct {
 
 var client = &http.Client{
 	Transport: &http.Transport{
-		MaxIdleConns:        1000,
-		MaxIdleConnsPerHost: 1000,
+		MaxIdleConns:        1500,
+		MaxIdleConnsPerHost: 1500,
 		IdleConnTimeout:     30 * time.Second,
 	},
 }

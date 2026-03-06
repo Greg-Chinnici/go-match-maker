@@ -121,10 +121,6 @@ func isValidMatch(lobby []*glicko.Player, maxRatingDiff float64) bool {
 	return lobby[len(lobby)-1].Rating-lobby[0].Rating < maxRatingDiff
 }
 
-type MatchStrategy interface {
-	BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error)
-}
-
 // make this create match more generic
 func createMatch(lobby []*glicko.Player, strategy MatchStrategy, teamCount int) (*ActiveMatch, error) {
 	teams, err := strategy.BuildMatch(lobby, teamCount)
@@ -137,10 +133,4 @@ func createMatch(lobby []*glicko.Player, strategy MatchStrategy, teamCount int) 
 
 func removeAt(s []*glicko.Player, index int) []*glicko.Player {
 	return append(s[:index], s[index+1:]...)
-}
-
-type MatchConfig struct {
-	LobbySize int
-	TeamCount int
-	Strategy  MatchStrategy
 }

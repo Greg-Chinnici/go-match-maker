@@ -31,13 +31,9 @@ func (t Team) TeamUIDSlice() []string {
 	return uids
 }
 
-type ITeamBalance interface {
-	TeamBalance(players []*glicko.Player, teamCount int) ([]Team, error)
-}
-
 type SnakeDraftTeam struct{}
 
-func (s SnakeDraftTeam) TeamBalance(players []*glicko.Player, teamCount int) ([]Team, error) {
+func (s SnakeDraftTeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error) {
 	if teamCount <= 0 {
 		return nil, fmt.Errorf("invalid team count")
 	}
@@ -73,7 +69,7 @@ func (s SnakeDraftTeam) TeamBalance(players []*glicko.Player, teamCount int) ([]
 
 type RandomTeam struct{}
 
-func (r RandomTeam) TeamBalance(players []*glicko.Player, teamCount int) ([]Team, error) {
+func (r RandomTeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error) {
 	if teamCount <= 0 {
 		return nil, fmt.Errorf("invalid team count")
 	}

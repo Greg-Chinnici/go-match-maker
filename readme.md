@@ -7,9 +7,11 @@
 
 ### Improvements in progress
 1. Adding better evaluation for matching (avg ping, player role, etc)
-2. Once players are in a lobby, use a few differnt team balance strategies
-    [x] Random Team
-    [x] Snake Draft
+2. Once players are in a lobby, use a few different team balance strategies
+- [x] Random Team
+- [x] Snake Draft
+- [x] Greedy Draft
+- [x] FFA
 
 ## Architecure
 1. HTTP API (net/http)
@@ -44,6 +46,8 @@ CREATE TABLE public.glickoplayers (
 1. use the `/queue` endpoint, optionaly include existing `uid` in json body
 2. Once players have been matches the server will log the `Match ID` and players involved
 3. use the `/report` endpoint to send in which player Won a certain match
+  - for now games are automaticallty ended in `mockGameResolver` via a timeout
+----
 - If you want to change the Rating delta for a valid match just change the value in `queue.ProcessMatches()` in main.go
 - run `go run . seed` to add 1000 players into the db
-- test with the `bulkQueue.py` maek sure the to set a csv file with a list of player IDs
+- test with the `BulkTests/main.go` 
