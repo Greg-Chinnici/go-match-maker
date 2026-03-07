@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"go-match-maker/glicko"
-	"os"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -21,20 +20,19 @@ type DBTX interface {
 
 var DB *pgxpool.Pool // using global for now
 
-func InitDB(connStr string) {
+func InitDB(connStr string) error {
 	var err error
 	DB, err = pgxpool.New(context.Background(), connStr)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Unable to connect to database: %v\n", err)
 	}
 
 	err = DB.Ping(context.Background())
 	if err != nil {
-		fmt.Printf("Ping failed: %v\n", err)
+		return fmt.Errorf("Ping failed: %v\n", err)
 	}
-
+	return nil
 }
 
 func TryFetchPlayer(uuid string) (*glicko.Player, error) {

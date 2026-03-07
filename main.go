@@ -30,7 +30,11 @@ func main() {
 
 	args := flag.Args()
 
-	server.InitDB(postgresConnStr())
+	err := server.InitDB(postgresConnStr())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	if len(args) > 0 && args[0] == "seed" {
 		server.Seed()
