@@ -1,17 +1,31 @@
 package server
 
 import (
+	"encoding/csv"
+	"go-match-maker/glicko"
 	"math/rand"
+	"os"
+	"time"
 
 	"github.com/google/uuid"
-
-	"go-match-maker/glicko"
 )
 
-func Seed() {
+func Seed(amount int) {
+	file, err := os.Create("results.csv")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
 
-	// populate with 1000 people
-	for range 1000 {
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	if amount == 0 {
+		amount = 1000
+	}
+
+	// populate with amount of people
+	for range amount {
 		id := uuid.New().String()
 
 		rating := rand.NormFloat64()*300 + 1500
@@ -28,6 +42,11 @@ func Seed() {
 		p := glicko.EstablishedPlayer(rating, rd, vol, id)
 
 		err := SavePlayer(p)
+
+		writer.Write([]string{
+			time.Now().Format(time.RFC3339Nano),
+			p.ID,
+		})
 
 		if err != nil {
 			panic(err)

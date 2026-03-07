@@ -37,7 +37,7 @@ func main() {
 	}
 
 	if len(args) > 0 && args[0] == "seed" {
-		server.Seed()
+		server.Seed(1000)
 		fmt.Println("Database seeded with 1000 new players.")
 		return
 	}
