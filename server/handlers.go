@@ -57,20 +57,6 @@ func RegisterHandlers(queue *matchmaking.Queue) {
 			}
 		}
 
-		/*
-			err = SavePlayer(p)
-			if err != nil {
-				var pgErr *pgconn.PgError
-				if errors.As(err, &pgErr) {
-					fmt.Printf("Postgres error code: %s", pgErr.Code)
-					fmt.Printf("Message: %s", pgErr.Message)
-					fmt.Printf("Detail: %s", pgErr.Detail)
-				} else {
-					fmt.Printf("Non-PG error: %+v", err)
-				}
-			}
-		*/
-
 		queue.AddPlayer(p)
 
 		w.WriteHeader(http.StatusOK)

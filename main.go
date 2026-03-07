@@ -15,7 +15,7 @@ import (
 
 func main() {
 	matchesWaitingSize := 1000
-	activeMatchesAtOnce := 20
+	activeMatchesAtOnce := 40
 
 	var teamCount int
 	var lobbySize int
@@ -53,7 +53,7 @@ func main() {
 	server.RegisterHandlers(queue)
 
 	jobs := make(chan *matchmaking.ActiveMatch, matchesWaitingSize)
-	server.StartWorkerPool(activeMatchesAtOnce, jobs) // workers will wait if more than X matches are running
+	server.StartWorkerPool(activeMatchesAtOnce, jobs) // workers will wait if more than workerCount matches are running
 
 	fmt.Println("Starting Loop Routine")
 	go func() {
