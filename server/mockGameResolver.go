@@ -35,6 +35,8 @@ func StartWorkerPool(workerCount int, jobs <-chan *matchmaking.ActiveMatch) {
 	}
 }
 func HandleMatch(match *matchmaking.ActiveMatch) {
+	// Real world case would be to send this to the actual match servers
+	// then tell the match how to report a finished game
 	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 
 	winner := match.Teams[rand.Intn(len(match.Teams))].ID

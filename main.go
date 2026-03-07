@@ -38,8 +38,12 @@ func main() {
 		return
 	}
 
-	config := matchmaking.ConfigFactory(gameType, lobbySize, teamCount)
-
+	config, err := matchmaking.ConfigFactory(gameType, lobbySize, teamCount)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println("Use the '-h' flag to see all options")
+		return
+	}
 	queue := matchmaking.NewQueue()
 
 	server.RegisterHandlers(queue)

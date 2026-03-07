@@ -1,6 +1,7 @@
 package matchmaking
 
 import (
+	"fmt"
 	"go-match-maker/glicko"
 )
 
@@ -13,16 +14,16 @@ type MatchStrategy interface {
 	BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error)
 }
 
-func ConfigFactory(gameType string, lobbySize, teamCount int) MatchConfig {
+func ConfigFactory(gameType string, lobbySize, teamCount int) (MatchConfig, error) {
 	switch gameType {
 	case "FFA":
-		return NewFFAConfig(lobbySize)
+		return NewFFAConfig(lobbySize), nil
 	case "TDM":
-		return NewCasualTeamDeathmatch(lobbySize)
+		return NewCasualTeamDeathmatch(lobbySize), nil
 	case "BR":
-		return NewBattleRoyale(lobbySize, teamCount)
+		return NewBattleRoyale(lobbySize, teamCount), nil
 	default:
-		panic("Invalid Match Config choice. (FFA , TDM , BR)")
+		return NewFFAConfig(1), fmt.Errorf("invalid match config: %s", gameType)
 	}
 
 }
