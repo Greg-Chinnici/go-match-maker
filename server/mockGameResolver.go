@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"slices"
 	"time"
 
 	"go-match-maker/matchmaking"
@@ -41,9 +42,22 @@ func HandleMatch(match *matchmaking.ActiveMatch) {
 	// as of now it just waits a bit and sends the correct post request to the current server
 	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 
-	winner := match.Teams[rand.Intn(len(match.Teams))].ID
+	winner := slices.MaxFunc[[]matchmaking.Team](match.Teams, func(a, b matchmaking.Team) int {
+		au := a.FirstPlayerByUUID()
+		bu := b.FirstPlayerByUUID()
+
+		switch {
+		case au < bu:
+			return -1
+		case au > bu:
+			return 1
+		default:
+			return 0
+		}
+	})
+
 	payload := ReportRequest{
-		Winner:  winner,
+		Winner:  winner.ID,
 		MatchID: match.ID,
 	}
 	body, err := json.Marshal(payload)

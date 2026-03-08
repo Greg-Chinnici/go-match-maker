@@ -21,6 +21,22 @@ func (t Team) AverageRating() float64 {
 	return sum / float64(len(t.Players))
 }
 
+func (t Team) FirstPlayerByUUID() string {
+	if len(t.Players) == 0 {
+		return ""
+	}
+
+	max := t.Players[0]
+
+	for i := 1; i < len(t.Players); i++ {
+		if t.Players[i].ID < max.ID {
+			max = t.Players[i]
+		}
+	}
+
+	return max.ID
+}
+
 func (t Team) TeamUIDSlice() []string {
 	uids := make([]string, 0, len(t.Players))
 
