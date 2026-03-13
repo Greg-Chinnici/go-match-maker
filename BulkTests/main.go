@@ -104,6 +104,7 @@ func main() {
 	count := flag.Int("count", 1000, "number of players")
 	workers := flag.Int("workers", 50, "concurrent workers")
 	reuse := flag.String("reuse", "", "path to results.csv to reuse player ids")
+	loop := flag.Int("loop", 1, "How many time to do the send")
 	flag.Parse()
 
 	var players []string
@@ -125,16 +126,16 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	// Start workers
-	for i := 0; i < *workers; i++ {
-		go func() {
-			for uid := range jobs {
-				wg.Add(1)
-				sendPlayer(uid, results, &wg)
-			}
-		}()
+	for l := 0; l < *loop; l++ {
+		for i := 0; i < *workers; i++ {
+			go func() {
+				for uid := range jobs {
+					wg.Add(1)
+					sendPlayer(uid, results, &wg)
+				}
+			}()
+		}
 	}
-
 	startTime := time.Now()
 
 	for _, p := range players {

@@ -26,12 +26,14 @@ type PlayerItem struct {
 }
 
 func (p PlayerItem) Less(than btree.Item) bool {
-	other := than.(PlayerItem).Player
+	a := p.Player
+	b := than.(PlayerItem).Player
 
-	if p.Player.Rating == other.Rating {
-		return p.Player.ID < other.ID
+	if a.Rating != b.Rating {
+		return a.Rating < b.Rating
 	}
-	return p.Player.Rating < other.Rating
+
+	return a.ID < b.ID
 }
 
 func NewQueue() *Queue {
@@ -39,7 +41,7 @@ func NewQueue() *Queue {
 		Registry:      make(map[string]*glicko.Player),
 		ActiveMatches: make(map[string]*ActiveMatch),
 
-		PlayersQueued: btree.New(3),
+		PlayersQueued: btree.New(16),
 	}
 }
 func (q *Queue) AddPlayer(p *glicko.Player) {
