@@ -1,0 +1,68 @@
+{{define "kpis"}}
+<div class="tile"><span class="label">Players waiting</span><span class="value">{{count .Queued}}</span></div>
+<div class="tile"><span class="label">Active matches</span><span class="value">{{count .Active}}</span></div>
+<div class="tile"><span class="label">Matches per second</span><span class="value">{{count .Reported}}</span></div>
+<div class="tile"><span class="label">Average queue wait</span><span class="value">{{if .AvgWaitS}}{{numPtr .AvgWaitS 1}} s{{else}}–{{end}}</span></div>
+<div class="tile"><span class="label">Rating vs skill correlation</span><span class="value">{{if .Sim.Players}}{{num .Sim.Correlation 3}}{{else}}–{{end}}</span></div>
+<div class="tile"><span class="label">Rating scale (slope)</span><span class="value">{{if .Sim.Players}}{{num .Sim.Slope 2}}{{else}}–{{end}}</span></div>
+{{end}}
+
+{{define "chart-card"}}
+<article class="card">
+  <h3>{{.Title}}</h3>
+  <p class="sub">{{.Subtitle}}</p>
+  <div class="plot"><canvas data-chart="{{.Config}}" aria-label="{{.Title}} over the last ten minutes"></canvas></div>
+  {{template "table-toggle" .ID}}
+</article>
+{{end}}
+
+{{define "table-toggle"}}
+<details class="tbl" hx-get="/dashboard/table/{{.}}" hx-trigger="toggle" hx-target="find .tbl-body">
+  <summary>Show table</summary>
+  <div class="tbl-body">Loading…</div>
+</details>
+{{end}}
+
+{{define "table"}}
+{{if .Rows}}
+<div class="scroll">
+<table>
+  <thead><tr>{{range .Headers}}<th scope="col">{{.}}</th>{{end}}</tr></thead>
+  <tbody>{{range .Rows}}<tr>{{range .}}<td>{{.}}</td>{{end}}</tr>{{end}}</tbody>
+</table>
+</div>
+{{else}}
+<p class="empty">No data yet.</p>
+{{end}}
+{{end}}
+
+{{define "matches"}}
+{{if .}}
+<div class="scroll">
+<table class="matches">
+  <thead><tr><th scope="col">Time</th><th scope="col">Match</th><th scope="col">Results (team average rating before → after)</th></tr></thead>
+  <tbody>
+  {{range .}}
+    <tr>
+      <td>{{clock .Time}}</td>
+      <td><code>{{shortID .ID}}</code></td>
+      <td>
+        <ol class="outcomes">
+        {{range .Teams}}
+          <li><span class="place">{{place .Place}}</span> {{num .Before 0}} → {{num .After 0}} <span class="delta">({{signed (sub .After .Before)}})</span></li>
+        {{end}}
+        </ol>
+      </td>
+    </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}
+<p class="empty">No matches reported yet.</p>
+{{end}}
+{{end}}
+
+{{define "loadgen-off"}}
+<p class="empty lg-off">Load generator not running. Start it with <code>go run ./cmd/loadgen -serve :9090</code> and this panel connects to {{.}} on its own.</p>
+{{end}}

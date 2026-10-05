@@ -7,15 +7,14 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"slices"
 	"time"
 
 	"go-match-maker/matchmaking"
+	"go-match-maker/sim"
 )
 
-const (
-	REPORT_API_URL = "http://localhost:8080/report"
-)
+// REPORT_API_URL is a var so tests can point the resolver at a test server.
+var REPORT_API_URL = "http://localhost:8080/report"
 
 var client = &http.Client{
 	Transport: &http.Transport{
@@ -35,31 +34,39 @@ func StartWorkerPool(workerCount int, jobs <-chan *matchmaking.ActiveMatch) {
 		}(i)
 	}
 }
+
+// SimStats tracks how close ratings from resolved matches are to the players'
+// hidden true skills. It is served at GET /sim/stats.
+var SimStats = sim.NewTracker()
+
 func HandleMatch(match *matchmaking.ActiveMatch) {
 	// Real world case would be to send this to the actual match servers
 	// then tell the match how to report a finished game
 	//
-	// as of now it just waits a bit and sends the correct post request to the current server
+	// as of now it waits a bit, plays the match out from each player's hidden
+	// true skill (see the sim package), and reports the finishing order to
+	// the current server
 	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 
-	winner := slices.MaxFunc[[]matchmaking.Team](match.Teams, func(a, b matchmaking.Team) int {
-		au := a.FirstPlayerByUUID()
-		bu := b.FirstPlayerByUUID()
-
-		switch {
-		case au < bu:
-			return -1
-		case au > bu:
-			return 1
-		default:
-			return 0
+	skills := make([]float64, len(match.Teams))
+	favorite := 0
+	for i, team := range match.Teams {
+		skills[i] = sim.TeamSkill(team.TeamUIDSlice())
+		if team.AverageRating() > match.Teams[favorite].AverageRating() {
+			favorite = i
 		}
-	})
-
-	payload := ReportRequest{
-		Winner:  winner.ID,
-		MatchID: match.ID,
 	}
+
+	order := sim.Placements(skills, nil)
+	payload := ReportRequest{
+		MatchID:    match.ID,
+		Winner:     match.Teams[order[0]].ID,
+		Placements: make([]string, len(order)),
+	}
+	for place, team := range order {
+		payload.Placements[place] = match.Teams[team].ID
+	}
+
 	body, err := json.Marshal(payload)
 	if err != nil {
 		fmt.Println("json error:", err)
@@ -79,20 +86,18 @@ func HandleMatch(match *matchmaking.ActiveMatch) {
 	}
 	defer resp.Body.Close()
 
-	bodyResp, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("read error:", err)
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(resp.Body)
+		fmt.Printf("report %s failed: %s %s\n", match.ID, resp.Status, bytes.TrimSpace(msg))
 		return
 	}
 
-	fmt.Println("Status:", resp.Status)
-	fmt.Println("Response JSON:")
-	var pretty bytes.Buffer
-	err = json.Indent(&pretty, bodyResp, "", "  ")
-	if err != nil {
+	var report ReportResponse
+	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
 		fmt.Println("invalid json:", err)
 		return
 	}
+	SimStats.RecordMatch(order[0] == favorite, report.PlayerRatings)
 
-	fmt.Println(pretty.String())
+	fmt.Printf("Match %s team ratings: %v\n", match.ID, report.TeamRatings)
 }
