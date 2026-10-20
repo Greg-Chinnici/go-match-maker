@@ -1,0 +1,43 @@
+{{define "panel"}}
+<p class="sub">Queues simulated players against {{.Status.Target}} from this separate process. Players are reused round-robin, so a player still in a match comes back as busy (409).</p>
+<form class="lg-form" hx-post="{{.Base}}/panel/start" hx-target="#lg-status" hx-swap="outerHTML">
+  <label>Players
+    <input type="number" name="players" value="{{.Defaults.Players}}" min="1" max="100000" required>
+  </label>
+  <label>Requests per second
+    <input type="number" name="rate" value="{{num .Defaults.Rate 0}}" min="1" max="20000" step="any" required>
+  </label>
+  <label>Duration
+    <input type="text" name="duration" value="{{duration .Defaults.Duration}}" placeholder="30s, 2m, 1h" required>
+  </label>
+  <button class="primary" type="submit">Start run</button>
+</form>
+{{template "status" .}}
+{{end}}
+
+{{define "status"}}
+<div id="lg-status" class="lg-status"
+     hx-get="{{.Base}}/panel/status" hx-trigger="every {{if .Error}}4s{{else}}1s{{end}}" hx-swap="outerHTML">
+  {{if .Error}}<p class="lg-error" role="alert">{{.Error}}</p>{{end}}
+  {{with .Status}}
+  <p>
+    {{if eq .State "idle"}}No run yet.
+    {{else if eq .State "running"}}Running: {{.Players}} players at {{num .Rate 0}}/s for {{.Duration}}, {{num .ElapsedS 0}}s in.
+    {{else if eq .State "done"}}Finished: {{.Players}} players at {{num .Rate 0}}/s for {{.Duration}}.
+    {{else}}Stopped after {{num .ElapsedS 0}}s.{{end}}
+    {{if eq .State "running"}}<button type="button" hx-post="{{$.Base}}/panel/stop" hx-target="#lg-status" hx-swap="outerHTML">Stop</button>{{end}}
+  </p>
+  {{if ne .State "idle"}}
+  <dl class="lg-stats">
+    <div><dt>Requests sent</dt><dd>{{.Sent}}</dd></div>
+    <div><dt>Queued (200)</dt><dd>{{.OK}}</dd></div>
+    <div><dt>Busy (409)</dt><dd>{{.Busy}}</dd></div>
+    <div><dt>Failed</dt><dd>{{.Failed}}</dd></div>
+    <div><dt>Achieved per second</dt><dd>{{num .RPS 0}}</dd></div>
+    <div><dt>Latency p50 / p95 / p99</dt><dd>{{num .P50Ms 1}} / {{num .P95Ms 1}} / {{num .P99Ms 1}} ms</dd></div>
+  </dl>
+  {{if .LastError}}<p class="lg-error">Last error: {{.LastError}}</p>{{end}}
+  {{end}}
+  {{end}}
+</div>
+{{end}}

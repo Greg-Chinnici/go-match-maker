@@ -26,15 +26,15 @@ func (t Team) FirstPlayerByUUID() string {
 		return ""
 	}
 
-	max := t.Players[0]
+	first := t.Players[0]
 
 	for i := 1; i < len(t.Players); i++ {
-		if t.Players[i].ID < max.ID {
-			max = t.Players[i]
+		if t.Players[i].ID < first.ID {
+			first = t.Players[i]
 		}
 	}
 
-	return max.ID
+	return first.ID
 }
 
 func (t Team) TeamUIDSlice() []string {
@@ -62,21 +62,19 @@ func (s SnakeDraftTeam) BuildMatch(players []*glicko.Player, teamCount int) ([]T
 		teams[i] = Team{ID: uuid.NewString()}
 	}
 
+	// picks run teamCount-1 .. 0, 0 .. teamCount-1, ... so the team at
+	// each end picks twice in a row when the order turns around
 	index := teamCount - 1
 	direction := -1
 
 	for i := len(players) - 1; i >= 0; i-- {
 		teams[index].Players = append(teams[index].Players, players[i])
 
-		index += direction
-
-		if index < 0 {
-			index = 1
-			direction = 1
-		}
-		if index >= teamCount {
-			index = teamCount - 2
-			direction = -1
+		next := index + direction
+		if next < 0 || next >= teamCount {
+			direction = -direction
+		} else {
+			index = next
 		}
 	}
 
@@ -132,13 +130,14 @@ func (f FFATeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team, er
 type OptimalTeam struct{}
 
 func (o OptimalTeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team, error) {
-	if teamCount < 0 {
+	if teamCount <= 0 {
 		return nil, fmt.Errorf("invalid team count")
 	}
 	if len(players) < teamCount {
 		return nil, fmt.Errorf("not enough players")
 	}
 
+	maxTeamSize := (len(players) + teamCount - 1) / teamCount
 	teams := make([]Team, teamCount)
 	teamTotals := make([]float64, teamCount)
 
@@ -150,9 +149,12 @@ func (o OptimalTeam) BuildMatch(players []*glicko.Player, teamCount int) ([]Team
 
 	for pid := len(players) - 1; pid >= 0; pid-- {
 		p := players[pid]
-		minIdx := 0
-		for i := 1; i < teamCount; i++ {
-			if teamTotals[i] < teamTotals[minIdx] {
+		minIdx := -1
+		for i := range teamCount {
+			if len(teams[i].Players) == maxTeamSize {
+				continue
+			}
+			if minIdx == -1 || teamTotals[i] < teamTotals[minIdx] {
 				minIdx = i
 			}
 		}

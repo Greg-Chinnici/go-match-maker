@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"time"
 
@@ -21,24 +24,42 @@ func main() {
 	var lobbySize int
 	var gameType string
 	var ratingDiff float64
+	var storeKind string
+	var loadgenURL string
 	flag.IntVar(&teamCount, "teamCount", 2, "Total Teams per Match")
 	flag.IntVar(&lobbySize, "lobby", 2, "Total Players in each Match")
 	flag.StringVar(&gameType, "gamemode", "FFA", "FFA , BR , TDM")
 	flag.Float64Var(&ratingDiff, "ratingDiff", 100., "Each Lobby's max rating delta")
+	flag.StringVar(&storeKind, "store", "postgres", "postgres , memory (ratings are lost on exit)")
+	flag.StringVar(&loadgenURL, "loadgen", "http://localhost:9090", "load generator the dashboard connects to; empty hides the panel")
 
 	flag.Parse()
 
 	args := flag.Args()
 
-	err := server.InitDB(postgresConnStr())
-	if err != nil {
-		fmt.Println(err)
+	seeding := len(args) > 0 && args[0] == "seed"
+
+	switch storeKind {
+	case "postgres":
+		if err := connectPostgres(); err != nil {
+			fmt.Println(err)
+			return
+		}
+	case "memory":
+		if seeding {
+			fmt.Println("seed needs -store postgres; an in-memory store is empty on every start")
+			return
+		}
+		fmt.Println("Using in-memory store: ratings are lost when the server stops")
+		server.UseStore(server.NewMemoryStore())
+	default:
+		fmt.Printf("unknown -store %q, use postgres or memory\n", storeKind)
 		return
 	}
 
-	if len(args) > 0 && args[0] == "seed" {
+	if seeding {
 		server.Seed(1000)
-		fmt.Println("Database seeded with 1000 new players.")
+		fmt.Println("Seeded players 0-999 (the IDs cmd/loadgen queues).")
 		return
 	}
 
@@ -51,6 +72,14 @@ func main() {
 	queue := matchmaking.NewQueue()
 
 	server.RegisterHandlers(queue)
+	server.StartTelemetry(queue, server.Info{
+		Mode:       gameType,
+		Lobby:      config.LobbySize,
+		Teams:      config.TeamCount,
+		RatingDiff: ratingDiff,
+		Store:      storeKind,
+		LoadgenURL: loadgenURL,
+	})
 
 	jobs := make(chan *matchmaking.ActiveMatch, matchesWaitingSize)
 	server.StartWorkerPool(activeMatchesAtOnce, jobs) // workers will wait if more than workerCount matches are running
@@ -65,6 +94,7 @@ func main() {
 				fmt.Println(err)
 				continue
 			}
+			server.RecordMatchesCreated(matches)
 
 			for _, match := range matches {
 				fmt.Printf("Teams in Match %s\n", match.ID)
@@ -77,15 +107,43 @@ func main() {
 		}
 	}()
 
-	fmt.Println("Server running on :8080")
+	fmt.Println("Server running on :8080, dashboard at http://localhost:8080/")
 	log.Fatal(server.Start(":8080"))
 
 }
 
-func postgresConnStr() string {
+// connectPostgres connects, checks the schema, and explains what to do when
+// either fails.
+func connectPostgres() error {
+	connStr, err := postgresConnStr()
+	if err != nil {
+		return err
+	}
+	target := connStr
+	if u, err := url.Parse(connStr); err == nil {
+		target = u.Redacted()
+	}
+	fmt.Println("Connecting to", target)
+
+	if err := server.InitDB(connStr); err != nil {
+		return fmt.Errorf("%w\nStart a local database with `docker compose up -d --wait`, check DATABASE_URL or DB_* in .env, or run with -store memory", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return server.CheckSchema(ctx)
+}
+
+// postgresConnStr uses DATABASE_URL when set (the usual form for hosted
+// databases), otherwise builds a URL from DB_* variables.
+func postgresConnStr() (string, error) {
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Println("No .env file found, relying on system env")
+	}
+
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		return dbURL, nil
 	}
 
 	user := os.Getenv("DB_USER")
@@ -93,9 +151,22 @@ func postgresConnStr() string {
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
 	name := os.Getenv("DB_NAME")
+	sslMode := os.Getenv("DB_SSLMODE")
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+	if host == "" || user == "" {
+		return "", fmt.Errorf("no database configured: set DATABASE_URL or DB_* in .env (see .env.example), or run with -store memory")
+	}
 
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		user, pass, host, port, name)
+	// url.URL escapes credentials, so passwords containing @ / : still work
+	connURL := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, pass),
+		Host:     net.JoinHostPort(host, port),
+		Path:     name,
+		RawQuery: url.Values{"sslmode": {sslMode}}.Encode(),
+	}
 
-	return connStr
+	return connURL.String(), nil
 }

@@ -1,6 +1,9 @@
 package glicko
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 const (
 	DefaultRating     = 1500.0
@@ -168,44 +171,106 @@ func UpdateTeamMatch(teamA, teamB []*Player, winner int) {
 	//  1 = teamA wins
 	// -1 = teamB wins
 	//  0 = draw
-
-	for _, pA := range teamA {
-		opps := make([]*Player, len(teamB))
-		scores := make([]float64, len(teamB))
-
-		for i, pB := range teamB {
-			opps[i] = pB
-
-			switch winner {
-			case 1:
-				scores[i] = 1.0
-			case -1:
-				scores[i] = 0.0
-			default:
-				scores[i] = 0.5
-			}
-		}
-
-		pA.Update(opps, scores)
+	ranks := []int{1, 1}
+	switch winner {
+	case 1:
+		ranks[1] = 2
+	case -1:
+		ranks[0] = 2
 	}
 
-	for _, pB := range teamB {
-		opps := make([]*Player, len(teamA))
-		scores := make([]float64, len(teamA))
+	UpdateRankedTeams([][]*Player{teamA, teamB}, ranks)
+}
 
-		for i, pA := range teamA {
-			opps[i] = pA
+// Unplaced is the rank of a team whose finishing position is unknown. It
+// finished behind every placed team, in no known order relative to the other
+// unplaced teams.
+const Unplaced = 0
 
-			switch winner {
-			case -1:
-				scores[i] = 1.0
-			case 1:
-				scores[i] = 0.0
-			default:
-				scores[i] = 0.5
+// UpdateRankedTeams applies one rating period to every player in a match of
+// two or more teams. ranks[i] is team i's finishing position: lower is better
+// and equal ranks are a draw. A report that only names a winner is
+// {1, Unplaced, Unplaced, ...}, which updates the losers against the winner
+// but not against each other.
+//
+// Each opposing team counts as one composite opponent, and every result is
+// computed from pre-match ratings, so the order players are updated in does
+// not matter.
+func UpdateRankedTeams(teams [][]*Player, ranks []int) error {
+	if len(teams) != len(ranks) {
+		return fmt.Errorf("%d teams but %d ranks", len(teams), len(ranks))
+	}
+
+	opponents := make([]*Player, len(teams))
+	for i, team := range teams {
+		if len(team) == 0 {
+			return fmt.Errorf("team %d has no players", i)
+		}
+		if ranks[i] < 0 {
+			return fmt.Errorf("team %d has negative rank %d", i, ranks[i])
+		}
+		opponents[i] = composite(team)
+	}
+
+	results := make([][]Result, len(teams))
+	for i := range teams {
+		for j := range teams {
+			if i == j {
+				continue
+			}
+			if score, ok := rankScore(ranks[i], ranks[j]); ok {
+				results[i] = append(results[i], Result{Opponent: opponents[j], Score: score})
 			}
 		}
+	}
 
-		pB.Update(opps, scores)
+	for i, team := range teams {
+		// no comparable results means nothing was learned, which is not
+		// the same as sitting out a rating period
+		if len(results[i]) == 0 {
+			continue
+		}
+		for _, p := range team {
+			p.update(results[i], DefaultTau)
+		}
+	}
+
+	return nil
+}
+
+// rankScore is the score of a team ranked a against a team ranked b, and
+// false when the two cannot be compared.
+func rankScore(a, b int) (float64, bool) {
+	switch {
+	case a == Unplaced && b == Unplaced:
+		return 0, false
+	case a == Unplaced:
+		return 0.0, true
+	case b == Unplaced:
+		return 1.0, true
+	case a < b:
+		return 1.0, true
+	case a > b:
+		return 0.0, true
+	default:
+		return 0.5, true
+	}
+}
+
+// composite collapses a team into a single opponent with the members' mean
+// rating, root-mean-square RD and mean volatility.
+func composite(team []*Player) *Player {
+	var rating, rdSq, vol float64
+	for _, p := range team {
+		rating += p.Rating
+		rdSq += p.RD * p.RD
+		vol += p.Volatility
+	}
+
+	n := float64(len(team))
+	return &Player{
+		Rating:     rating / n,
+		RD:         math.Sqrt(rdSq / n),
+		Volatility: vol / n,
 	}
 }

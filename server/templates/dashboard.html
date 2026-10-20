@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Match Maker Dashboard</title>
+  <!-- the load generator panel is served from another origin -->
+  <meta name="htmx-config" content='{"selfRequestsOnly": false}'>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-sse@2.2.4/sse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.1/chart.umd.min.js"></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body hx-ext="sse" sse-connect="/events">
+  <header class="top">
+    <div>
+      <h1>Match maker</h1>
+      <p class="info">
+        {{.Info.Mode}} · lobby {{.Info.Lobby}} · {{.Info.Teams}} teams · rating window ±{{num .Info.RatingDiff 0}} · {{.Info.Store}} store
+      </p>
+    </div>
+    <div class="top-right">
+      <span id="live" class="status status-wait" role="status"><span class="dot" aria-hidden="true"></span><span class="status-text">Connecting</span></span>
+      <button id="theme" class="ghost" type="button" aria-label="Switch color theme">Theme: auto</button>
+    </div>
+  </header>
+
+  <!-- chart data arrives as JSON events; app.js handles them, nothing is swapped -->
+  <div sse-swap="history,chart,points" hidden></div>
+
+  <main>
+    <section id="kpis" class="kpis" sse-swap="kpis" aria-live="off">
+      {{template "kpis" .Latest}}
+    </section>
+
+    <h2>Traffic</h2>
+    <section class="grid two">
+      {{range .TrafficCharts}}{{template "chart-card" .}}{{end}}
+    </section>
+
+    <h2>Rating model</h2>
+    <p class="section-note">How close ratings are to each simulated player's hidden true skill.</p>
+    <section class="grid two">
+      <article class="card">
+        <h3>Rating vs true skill</h3>
+        <p class="sub">Each dot is a player; on the line, rating equals true skill</p>
+        <div class="plot tall"><canvas id="scatter" aria-label="Scatter plot of rating against true skill"></canvas></div>
+        {{template "table-toggle" "scatter"}}
+      </article>
+      <article class="card">
+        <h3>Distribution</h3>
+        <p class="sub">Players per 100-point band, by rating and by true skill</p>
+        <div class="plot tall"><canvas id="histogram" aria-label="Histogram of ratings and true skills"></canvas></div>
+        {{template "table-toggle" "histogram"}}
+      </article>
+    </section>
+    <section class="grid three">
+      {{range .ModelCharts}}{{template "chart-card" .}}{{end}}
+    </section>
+
+    <h2>Recent matches</h2>
+    <section id="matches" class="card" sse-swap="matches">
+      {{template "matches" .Recent}}
+    </section>
+
+    {{if .Info.LoadgenURL}}
+    <h2>Load generator</h2>
+    <section id="loadgen" class="card"
+             hx-get="{{.Info.LoadgenURL}}/panel"
+             hx-trigger="load, every 5s [!this.querySelector('form')]"
+             data-placeholder="lg-off">
+      {{template "loadgen-off" .Info.LoadgenURL}}
+    </section>
+    {{end}}
+  </main>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# Local Postgres for the match maker. Reads DB_* from .env (see .env.example).
+#   docker compose up -d --wait
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      POSTGRES_DB: ${DB_NAME:-postgres}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      # postgres 18+ keeps its data under /var/lib/postgresql/<version>
+      - pgdata:/var/lib/postgresql
+      # only runs when the volume is empty
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # opt-in: docker compose --profile loadtest up -d
+  # The match maker runs on the host (go run .), so loadgen reaches it there.
+  loadgen:
+    profiles: [loadtest]
+    build:
+      context: .
+      args:
+        TARGET: ./cmd/loadgen
+    command:
+      - -serve=:9090
+      - -target=http://host.docker.internal:8080
+      - -allow-origin=http://localhost:8080,http://127.0.0.1:8080
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Linux; Docker Desktop has it built in
+
+volumes:
+  pgdata:
